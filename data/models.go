@@ -72,13 +72,13 @@ func (repo *PostgresRepository) GetOneNearbyGeoCell(latitude float64, longitude 
 	query := `
         SELECT id, crime_name, crime_score, crime_firearm, weather_description, weather_condition, ST_X(coordinates), ST_Y(coordinates) 
         FROM geocells 
-        WHERE ST_DWithin(coordinates, ST_MakePoint($2, $1)::geography, $3)
-        ORDER BY coordinates <-> ST_MakePoint($2, $1)::geography
+        WHERE ST_DWithin(coordinates, ST_MakePoint($1, $2)::geography, $3)
+        ORDER BY coordinates <-> ST_MakePoint($1, $2)::geography
         LIMIT 1;
     `
 
-	// Execute the query and scan the results into the GeoCell struct. If no rows are returned, return an empty GeoCell. PostGIS stores coordinates as (longitude, latitude)
-	err := db.QueryRow(query, latitude, longitude, radius).Scan(&cell.Id, &cell.CrimeName, &cell.CrimeScore, &cell.CrimeFirearm, &cell.WeatherDescription, &cell.WeatherCondition, &cell.Longitude, &cell.Latitude)
+	// Execute the query and scan the results into the GeoCell struct. If no rows are returned, return an empty GeoCell.
+	err := db.QueryRow(query, longitude, latitude, radius).Scan(&cell.Id, &cell.CrimeName, &cell.CrimeScore, &cell.CrimeFirearm, &cell.WeatherDescription, &cell.WeatherCondition, &cell.Longitude, &cell.Latitude)
 	if errors.Is(err, sql.ErrNoRows) {
 		log.Printf("No GeoCells found within %v meters of (%v, %v)", radius, latitude, longitude)
 		return cell, nil
