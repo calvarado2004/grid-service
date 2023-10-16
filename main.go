@@ -42,6 +42,13 @@ var (
 		Name: "app_goroutines",
 		Help: "Number of goroutines currently running.",
 	})
+
+	geoCellCounter = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "geocell_found_total",
+			Help: "Total number of geoCells found by EvaluateRoute.",
+		},
+		[]string{"lat", "lon", "crime_name", "crime_firearm", "weather_description"})
 )
 
 func openDB(dsn string) (*sql.DB, error) {
@@ -151,6 +158,7 @@ func main() {
 	prometheus.MustRegister(dbConnectionErrors)
 	prometheus.MustRegister(directionsRequests)
 	prometheus.MustRegister(goroutines)
+	prometheus.MustRegister(geoCellCounter)
 
 	if rabbitMQHost == "" {
 		rabbitMQHost = "localhost"
@@ -516,6 +524,14 @@ func (gridService *RabbitMQGridService) EvaluateRoute(directions models.Directio
 
 					if cell.CrimeScore > 0 {
 						log.Printf("Found GeoCell with a recent crime nearby: %s, score %d, firearm %s", cell.CrimeName, cell.CrimeScore, cell.CrimeFirearm)
+						// Increment the counter for this GeoCell for Prometheus
+						geoCellCounter.With(prometheus.Labels{
+							"lat":                 fmt.Sprintf("%.6f", loc.Lat),
+							"lon":                 fmt.Sprintf("%.6f", loc.Lon),
+							"crime_name":          cell.CrimeName,
+							"crime_firearm":       cell.CrimeFirearm,
+							"weather_description": cell.WeatherDescription,
+						}).Inc()
 
 					}
 
